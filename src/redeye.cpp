@@ -128,14 +128,6 @@ void redeye_isr_bit_clock()
 
 void redeye_isr()
 {
-	
-	//redeye_bit_period_counter = 0;
-	//
-
-	//digitalWrite(4, HIGH);
-	//delayMicroseconds(1);
-	//digitalWrite(4, LOW);
-
 	if(!interrupt_enabled)
 	{
 		redeye_bit_period_counter = 0;

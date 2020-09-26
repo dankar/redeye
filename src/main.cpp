@@ -1,10 +1,11 @@
 #include <Arduino.h>
-#include <TimerOne.h>
 #include "redeye.h"
+#include "printer.h"
 
 void setup() {
-	Serial.begin(115200);
+	Serial.begin(1000000);
 	redeye_init();
+	printer_init();
 }
 
 void loop() {
@@ -17,6 +18,6 @@ void loop() {
 
   if(redeye_char_available())
   {
-	  Serial.write(redeye_get_char());
+	  printer_char(redeye_get_char());
   }
 }

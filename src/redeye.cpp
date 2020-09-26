@@ -3,6 +3,11 @@
 #include "redeye.h"
 #include "error_correction.h"
 
+#define DEBUG_PIN_OUT       0
+
+#define IR_PIN              3
+#define DEBUG_PIN           4
+
 #define BIT_PERIOD          854 // us
 #define HALF_BIT_PERIOD     (BIT_PERIOD/2)
 #define TOLERANCE           10 // Percent of a bit period
@@ -12,7 +17,7 @@
 #define START_BITS          3
 #define STOP_BITS           3
 
-#define BUFFER_SIZE         25
+#define BUFFER_SIZE         200
 
 #define CHECK_START_BITS(x) ((((x) >> 0x1B) & 0b111) == 0b111)
 #define CHECK_STOP_BITS(x)  (((x) & 0b111) == 0b000)
@@ -29,6 +34,9 @@ volatile uint8_t redeye_data_buffer_tail = 0;
 volatile uint8_t redeye_data_overflow_state = 0;
 volatile uint8_t redeye_bit_period_counter = 0;
 volatile uint32_t redeye_data = 0;
+
+volatile uint8_t interrupt_enabled = 0;
+volatile uint32_t last_pulse = 0;
 
 TimerOne timer1;
 
@@ -79,40 +87,81 @@ uint8_t redeye_get_char()
 
 void redeye_isr();
 
+void redeye_stop_isr()
+{
+	timer1.detachInterrupt();
+	timer1.stop();
+	interrupt_enabled = false;
+}
+
 void redeye_isr_bit_clock()
 {
-	redeye_data = (redeye_data << 1) | (digitalRead(3) ^ 1);
+	uint8_t data = ((micros() - last_pulse) < 1200000/32768) ? 1 : 0;
+	if(!data)
+	{
+		// If we are not getting pulses, check if we are continually high. This might
+		// happen due to IR transistor saturation
+		data = digitalRead(IR_PIN);
+	}
+
+	#if DEBUG_PIN_OUT == 1
+	digitalWrite(DEBUG_PIN, HIGH);
+	digitalWrite(DEBUG_PIN, LOW);
+	#endif
+
+	redeye_data = (redeye_data << 1) | data;
 
 	if(++redeye_bit_period_counter == (START_BITS + (WORD_LENGTH*2) + STOP_BITS))
 	{
 		redeye_put_char(redeye_decode_char(redeye_data));
-		attachInterrupt(digitalPinToInterrupt(3), redeye_isr, FALLING);
-		timer1.detachInterrupt();
-		timer1.stop();
-		// Clear pending pin change interrupt so we don't start the timer again
-		EIFR = _BV(PCIF1);
+		redeye_stop_isr();
+	}
+	else if(redeye_bit_period_counter == START_BITS)
+	{
+		// Give up early if we haven't gotten the start bits
+		if(redeye_data != 0b111)
+		{
+			redeye_stop_isr();
+		}
 	}
 }
 
 void redeye_isr()
 {
-	redeye_bit_period_counter = 0;
-	redeye_data = 0;
-	delayMicroseconds(HALF_BIT_PERIOD / 4);
-	detachInterrupt(digitalPinToInterrupt(3));
-	timer1.attachInterrupt(redeye_isr_bit_clock);
-	timer1.setPeriod(HALF_BIT_PERIOD);
-	timer1.start();
+	
+	//redeye_bit_period_counter = 0;
+	//
+
+	//digitalWrite(4, HIGH);
+	//delayMicroseconds(1);
+	//digitalWrite(4, LOW);
+
+	if(!interrupt_enabled)
+	{
+		redeye_bit_period_counter = 0;
+		redeye_data = 0;
+		delayMicroseconds(HALF_BIT_PERIOD/6);
+		timer1.attachInterrupt(redeye_isr_bit_clock);
+		timer1.setPeriod(HALF_BIT_PERIOD);
+		timer1.start();
+		interrupt_enabled = true;
+	}
+
+	last_pulse = micros();
 }
 
 void redeye_init()
 {
-	pinMode(3, INPUT);
-	digitalWrite(3, HIGH);
+#if DEBUG_PIN_OUT == 1
+	pinMode(DEBUG_PIN, OUTPUT);
+#endif
+	pinMode(IR_PIN, INPUT);
+	digitalWrite(IR_PIN, HIGH);
 	timer1.initialize(HALF_BIT_PERIOD);
 	timer1.attachInterrupt(redeye_isr_bit_clock);
 	timer1.stop();
-  	attachInterrupt(digitalPinToInterrupt(3), redeye_isr, FALLING);
+  	attachInterrupt(digitalPinToInterrupt(IR_PIN), redeye_isr, RISING);
+	interrupt_enabled = 0;
 }
 
 uint8_t redeye_get_overflow()

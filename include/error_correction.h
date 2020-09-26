@@ -31,7 +31,6 @@
 #define POS14_BIT (1 << 0x6)
 #define POS15_BIT 0x0
 
-
 uint16_t bit_pos_to_bit[16] = {
     POS00_BIT,
     POS01_BIT,
@@ -50,7 +49,6 @@ uint16_t bit_pos_to_bit[16] = {
     POS14_BIT,
     POS15_BIT
 };
-
 
 #define ERROR_CORRECT(x) (((x) ^ bit_pos_to_bit[ \
                             (((((x) >> 0x0) & 1) * BIT01_POS) ^ \

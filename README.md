@@ -14,7 +14,9 @@ The thermal printer is connected to pin 0 and 1 (RX and TX) on the Uno.
 
 I'll put up some form of schematic here later.
 
-## Usage
+## Compiling and using
+
+The code is written using the platformio framework. It should, in theory, be as easy as installing platformio and then compiling the workspace.
 
 The code is still being updated and there might be a few bugs left, but it should fully support all functions of the original printer (it prints text with the correct font, graphics, can do wide and underline etc.)
 

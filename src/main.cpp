@@ -3,7 +3,7 @@
 #include "printer.h"
 
 void setup() {
-	Serial.begin(1000000);
+	Serial.begin(19200);
 	redeye_init();
 	printer_init();
 }
@@ -12,7 +12,6 @@ void loop() {
   // put your main code here, to run repeatedly:
   if(redeye_get_overflow())
   {
-	  Serial.println("OVERFLOW!");
 	  for(;;);
   }
 

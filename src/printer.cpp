@@ -1,28 +1,25 @@
 #include <Arduino.h>
 #include "printer.h"
 #include "font.h"
+#include "Adafruit_Thermal.h"
 
-#define SCREEN_HEIGHT    320
-#define SCREEN_WIDTH     240
+#define ESCAPE_CHAR         27
+#define RESET               255
+#define SELFTEST            254
+#define DOUBLEWIDE          253
+#define SINGLEWIDE          252
+#define UNDERLINE           251
+#define NO_UNDERLINE        250
+#define LATIN1              249
+#define ROMAN8              248
 
-#define TEXT_HEIGHT      8
-#define MARGIN_LEFT      40
+#define MAX_COLUMNS         166
 
-#define ESCAPE_CHAR      27
-#define RESET            255
-#define SELFTEST         254
-#define DOUBLEWIDE       253
-#define SINGLEWIDE       252
-#define UNDERLINE        251
-#define NO_UNDERLINE     250
-#define LATIN1           249
-#define ROMAN8           248
-
-#define MAX_COLUMNS      166
+#define LINE_FEED           10
+#define SPECIAL_LINE_FEED   4
 
 char printer_buffer[200];
 
-uint8_t character_buffer[50];
 uint8_t character_ptr = 0;
 
 uint8_t x_position = 0;
@@ -33,41 +30,46 @@ uint8_t double_wide = 0;
 uint8_t escape_mode = 0;
 uint8_t graphic_chars_remaining = 0;
 
+Adafruit_Thermal printer(&Serial);
+
 void printer_reset_cursor()
 {
 	x_position = 0;
 }
 
-#define RECEIVE_GRAPHICS 2
-#define RECEIVE_CHARACTERS 3
+uint8_t graphics_buffer[200*4];
+
+uint16_t double_bits(uint8_t x)
+{
+	uint16_t result = 0;
+	for(int i = 0; i < 16; i++)
+	{
+		result |= ((x >> i/2) & 1) << i;
+	}
+	return result;
+}
+
+#define GET_BIT(arr, x, y) ((arr[x] >> (y)) & 1)
 
 void printer_print_graphics()
 {
+	// Pad to a multiple of 8 pixels wide
 	while(x_position % 8)
 	{
 		printer_buffer[x_position++] = '\0';
 	}
-
 	
-	uint8_t array[200];
-	memset(array, 0, 200);
+	memset(graphics_buffer, 0, 200*4);
 
-	for(int x = 0; x < x_position; x++)
+	for(int x = 0; x < x_position*2; x++)
 	{
-		for(int y = 0; y < 8; y++)
+		for(int y = 0; y < 16; y++)
 		{
-			array[x/8 + y * x_position/8] |= ((printer_buffer[x] >> (y)) & 1) << (7 - ((x) % 8));
+			graphics_buffer[x/8 + y * (x_position*2)/8] |= GET_BIT(printer_buffer, x/2, y/2) << (7 - ((x) % 8));
 		}
 	}
 
-	Serial.write(uint8_t(RECEIVE_GRAPHICS));
-	Serial.write((uint8_t)x_position);
-
-	
-	for(int i = 0; i < x_position; i++)
-	{
-		Serial.write(array[i]);
-	}
+	printer.printBitmap(x_position*2, 16, graphics_buffer, false);
 	
 	memset(printer_buffer, 0, 200);
 }
@@ -75,27 +77,21 @@ void printer_print_graphics()
 void printer_print_text();
 void printer_draw_character(uint8_t c)
 {
-	character_buffer[character_ptr++] = c;
-}
-
-void printer_print_text()
-{
-	Serial.write(uint8_t(RECEIVE_CHARACTERS));
-	Serial.write(uint8_t(character_ptr));
-
-	for(int i = 0; i < character_ptr; i++)
+	if(x_position != 0)
 	{
-		Serial.write(character_buffer[i]);
+		printer_buffer[x_position++] = '\0' | (underline ? 0x80 : 0x0);
 	}
 
-	character_ptr = 0;
+	for(int i = 0; i < FONT_WIDTH; i++)
+	{
+		printer_buffer[x_position++] = pgm_read_byte(&(font[(c-FONT_OFFSET)*FONT_WIDTH + i])) | (underline ? 0x80 : 0x0);
+		if(double_wide)
+		{
+			printer_buffer[x_position++] = pgm_read_byte(&(font[(c-FONT_OFFSET)*FONT_WIDTH + i])) | (underline ? 0x80 : 0x0);
+		}
+	}
+	printer_buffer[x_position++] = '\0' | (underline ? 0x80 : 0x0);
 }
-
-#define UNDERLINE_ON 5
-#define UNDERLINE_OFF 6
-#define DOUBLEWIDTH_ON 7
-#define DOUBLEWIDTH_OFF 8
-
 
 void printer_self_test()
 {
@@ -120,7 +116,7 @@ void printer_self_test()
 	printer_char('T');
 	printer_char(':');
 	printer_char(' ');
-	printer_char('4');
+	printer_char('5');
 	printer_char('\n');
 	delay(500);
 	printer_char('\n');
@@ -128,10 +124,12 @@ void printer_self_test()
 }
 
 void printer_char(uint8_t c);
+
 void printer_init()
 {
+	printer.begin(255);
+	printer.setLineHeight(8);
 	printer_reset_cursor();
-	//printer_self_test();
 }
 
 void printer_char(uint8_t c)
@@ -156,19 +154,15 @@ void printer_char(uint8_t c)
 			printer_self_test();
 			break;
 		case DOUBLEWIDE:
-			printer_draw_character(DOUBLEWIDTH_ON);
 			double_wide = 1;
 			break;
 		case SINGLEWIDE:
-			printer_draw_character(DOUBLEWIDTH_OFF);
 			double_wide = 0;
 			break;
 		case UNDERLINE:
-			printer_draw_character(UNDERLINE_ON);
 			underline = 1;
 			break;
 		case NO_UNDERLINE:
-			printer_draw_character(UNDERLINE_OFF);
 			underline = 0;
 			break;
 		case LATIN1:
@@ -178,7 +172,7 @@ void printer_char(uint8_t c)
 		default:
 			if(c > 0 && c <= 166)
 			{
-				graphic_chars_remaining = c+1;
+				graphic_chars_remaining = c;
 			}
 			else
 			{
@@ -192,25 +186,20 @@ void printer_char(uint8_t c)
 	{
 		printer_buffer[x_position++] = c;
 		graphic_chars_remaining--;
-
-		if(!graphic_chars_remaining)
-		{
-			x_position--;
-			printer_print_graphics();
-			x_position = 0;
-		}
 	}
 	else
 	{
-		if(c == 4)
+		if(c == 4 || c == 10)
 		{
-			//printer_print_text();
-			x_position = 0;
-		}
-		else if(c == 10)
-		{
-			printer_print_text();
-			printer_reset_cursor();
+			if(!x_position)
+			{
+				printer.feedRows(16);
+			}
+			else
+			{
+				printer_print_graphics();
+				printer_reset_cursor();
+			}
 		}
 		else
 		{
@@ -222,7 +211,6 @@ void printer_char(uint8_t c)
 			{
 				printer_draw_character(BLOCK_CHAR);
 			}
-			
 		}
 	}
 }

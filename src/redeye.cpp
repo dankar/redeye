@@ -2,16 +2,12 @@
 #include <TimerOne.h>
 #include "redeye.h"
 #include "error_correction.h"
+#include "pins.h"
 
 #define DEBUG_PIN_OUT       0
 
-#define IR_PIN              3
-#define DEBUG_PIN           4
-
 #define BIT_PERIOD          854 // us
 #define HALF_BIT_PERIOD     (BIT_PERIOD/2)
-#define TOLERANCE           10 // Percent of a bit period
-#define BIT_TOLERANCE       (BIT_PERIOD * TOLERANCE / 100)
 
 #define WORD_LENGTH         12
 #define START_BITS          3

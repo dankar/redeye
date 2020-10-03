@@ -2,6 +2,10 @@
 
 This project attempts to emulate an old HP 82240 IR printer.
 
+## License
+
+See LICENSE.md for license information. In short: Creative Commons Attribution-NonCommercial
+
 ## Hardware
 
 * Thermal printer from Adafruit: https://www.adafruit.com/product/597
@@ -20,3 +24,4 @@ The code is written using the platformio framework. It should, in theory, be as 
 
 The code is still being updated and there might be a few bugs left, but it should fully support all functions of the original printer (it prints text with the correct font, graphics, can do wide and underline etc.)
 
+![](https://i.imgur.com/UuuNfDg.jpg)

@@ -32,7 +32,6 @@ uint8_t underline = 0;
 uint8_t double_wide = 0;
 uint8_t escape_mode = 0;
 uint8_t graphic_chars_remaining = 0;
-uint8_t graphics_pointer = 0;
 
 void printer_reset_cursor()
 {
@@ -132,10 +131,8 @@ void printer_char(uint8_t c);
 void printer_init()
 {
 	printer_reset_cursor();
-	printer_self_test();
+	//printer_self_test();
 }
-
-
 
 void printer_char(uint8_t c)
 {
@@ -181,8 +178,7 @@ void printer_char(uint8_t c)
 		default:
 			if(c > 0 && c <= 166)
 			{
-				graphics_pointer = 0;
-				graphic_chars_remaining = c;
+				graphic_chars_remaining = c+1;
 			}
 			else
 			{
@@ -195,22 +191,20 @@ void printer_char(uint8_t c)
 	else if(graphic_chars_remaining)
 	{
 		printer_buffer[x_position++] = c;
-		if(x_position > MAX_COLUMNS)
-		{
-			printer_reset_cursor();
-		}
 		graphic_chars_remaining--;
 
 		if(!graphic_chars_remaining)
 		{
+			x_position--;
 			printer_print_graphics();
-			graphics_pointer = 0;
+			x_position = 0;
 		}
 	}
 	else
 	{
 		if(c == 4)
 		{
+			//printer_print_text();
 			x_position = 0;
 		}
 		else if(c == 10)

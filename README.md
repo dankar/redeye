@@ -25,3 +25,7 @@ The code is written using the platformio framework. It should, in theory, be as 
 The code is still being updated and there might be a few bugs left, but it should fully support all functions of the original printer (it prints text with the correct font, graphics, can do wide and underline etc.)
 
 ![](https://i.imgur.com/UuuNfDg.jpg)
+
+## Schematic
+
+![](https://github.com/dankar/redeye/blob/master/schematic/schematic.png?raw=true)

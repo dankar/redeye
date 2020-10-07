@@ -2,6 +2,6 @@
 #define _PRINTER_H_
 
 void printer_init();
-void printer_char(uint8_t c);
+void printer_char(uint16_t c);
 
 #endif

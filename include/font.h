@@ -10,6 +10,7 @@
 
 #define BLOCK_CHAR       252
 
+extern const unsigned char overflow_char[FONT_WIDTH] PROGMEM;
 extern const unsigned char font[FONT_NUM_CHARS*FONT_WIDTH] PROGMEM;
 
 #endif

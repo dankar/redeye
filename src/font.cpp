@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include "font.h"
 
+const unsigned char overflow_char[FONT_WIDTH] PROGMEM = {0x9f, 0xcf, 0xe7, 0xf3, 0xf9};
+
 const unsigned char font[FONT_NUM_CHARS*FONT_WIDTH] PROGMEM = 
 { 
 	0x0, 0x0, 0x0, 0x0, 0x0,

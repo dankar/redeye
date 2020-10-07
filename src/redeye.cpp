@@ -56,21 +56,40 @@ uint8_t redeye_decode_char(uint32_t c)
 
 void redeye_put_char(uint8_t c)
 {
-	redeye_data_buffer[redeye_data_buffer_head++] = c;
-	redeye_data_buffer_head = redeye_data_buffer_head % BUFFER_SIZE;
-	redeye_data_overflow_state = redeye_data_buffer_head == redeye_data_buffer_tail;
+	if(!redeye_get_overflow())
+	{
+		if(redeye_data_buffer_head + 1 == redeye_data_buffer_tail)
+		{
+			redeye_data_buffer[redeye_data_buffer_head++] = OVERFLOW_CHAR;
+			redeye_data_overflow_state = true;
+		}
+		else
+		{
+			redeye_data_buffer[redeye_data_buffer_head++] = c;
+			redeye_data_buffer_head = redeye_data_buffer_head % BUFFER_SIZE;	
+		}
+	}
 }
 
 uint8_t redeye_char_available()
 {
-	return redeye_data_buffer_head != redeye_data_buffer_tail;
+	return redeye_get_overflow() || redeye_data_buffer_head != redeye_data_buffer_tail;
 }
 
-uint8_t redeye_get_char()
+uint16_t redeye_get_char()
 {
+	if(redeye_get_overflow())
+	{
+		// When we've emptied the buffer after an overflow, emit the special overflow character
+		if(redeye_data_buffer_head == redeye_data_buffer_tail)
+		{
+			redeye_data_overflow_state = false;
+			return OVERFLOW_CHAR;
+		}
+	}
 	if(redeye_char_available())
 	{
-		char c = redeye_data_buffer[redeye_data_buffer_tail++];
+		uint8_t c = redeye_data_buffer[redeye_data_buffer_tail++];
 		redeye_data_buffer_tail = redeye_data_buffer_tail % BUFFER_SIZE;
 		return c;
 	}
@@ -78,7 +97,6 @@ uint8_t redeye_get_char()
 	{
 		return '\0';
 	}
-	
 }
 
 void redeye_isr();

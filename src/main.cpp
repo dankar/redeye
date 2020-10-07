@@ -9,12 +9,6 @@ void setup() {
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  if(redeye_get_overflow())
-  {
-	  for(;;);
-  }
-
   if(redeye_char_available())
   {
 	  printer_char(redeye_get_char());

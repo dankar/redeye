@@ -2,6 +2,7 @@
 #include "printer.h"
 #include "font.h"
 #include "Adafruit_Thermal.h"
+#include "redeye.h"
 
 #define ESCAPE_CHAR         27
 #define RESET               255
@@ -75,7 +76,7 @@ void printer_print_graphics()
 }
 
 void printer_print_text();
-void printer_draw_character(uint8_t c)
+void printer_draw_character(uint16_t c)
 {
 	if(x_position != 0)
 	{
@@ -84,10 +85,11 @@ void printer_draw_character(uint8_t c)
 
 	for(int i = 0; i < FONT_WIDTH; i++)
 	{
-		printer_buffer[x_position++] = pgm_read_byte(&(font[(c-FONT_OFFSET)*FONT_WIDTH + i])) | (underline ? 0x80 : 0x0);
+		char char_data = c != OVERFLOW_CHAR ? pgm_read_byte(&(font[(c-FONT_OFFSET)*FONT_WIDTH + i])) : pgm_read_byte(&(overflow_char[i]));
+		printer_buffer[x_position++] =  char_data | (underline ? 0x80 : 0x0);
 		if(double_wide)
 		{
-			printer_buffer[x_position++] = pgm_read_byte(&(font[(c-FONT_OFFSET)*FONT_WIDTH + i])) | (underline ? 0x80 : 0x0);
+			printer_buffer[x_position++] = char_data | (underline ? 0x80 : 0x0);
 		}
 	}
 	printer_buffer[x_position++] = '\0' | (underline ? 0x80 : 0x0);
@@ -132,9 +134,20 @@ void printer_init()
 	printer_reset_cursor();
 }
 
-void printer_char(uint8_t c)
+void printer_char(uint16_t c)
 {
-	if(!graphic_chars_remaining && c == ESCAPE_CHAR)
+	if(c == OVERFLOW_CHAR)
+	{
+		printer_draw_character(c);
+		if(c == OVERFLOW_CHAR)
+		{
+			printer_print_graphics();
+			printer_reset_cursor();
+		}
+		return;
+	}
+	uint8_t rc = uint8_t(c);
+	if(!graphic_chars_remaining && rc == ESCAPE_CHAR)
 	{
 		escape_mode = 1;
 		return;
@@ -142,7 +155,7 @@ void printer_char(uint8_t c)
 
 	if(escape_mode)
 	{
-		switch(c)
+		switch(rc)
 		{
 		case RESET:
 			printer_reset_cursor();
@@ -170,9 +183,9 @@ void printer_char(uint8_t c)
 		case ROMAN8:
 			break;
 		default:
-			if(c > 0 && c <= 166)
+			if(rc > 0 && rc <= 166)
 			{
-				graphic_chars_remaining = c;
+				graphic_chars_remaining = rc;
 			}
 			else
 			{
@@ -184,12 +197,12 @@ void printer_char(uint8_t c)
 	}
 	else if(graphic_chars_remaining)
 	{
-		printer_buffer[x_position++] = c;
+		printer_buffer[x_position++] = uint8_t(rc);
 		graphic_chars_remaining--;
 	}
 	else
 	{
-		if(c == 4 || c == 10)
+		if(rc == 4 || rc == 10)
 		{
 			if(!x_position)
 			{
@@ -205,7 +218,7 @@ void printer_char(uint8_t c)
 		{
 			if(c >= FONT_OFFSET)
 			{
-				printer_draw_character(c);
+				printer_draw_character(rc);
 			}
 			else
 			{

@@ -60,7 +60,7 @@ void redeye_put_char(uint8_t c)
 	{
 		if(redeye_data_buffer_head + 1 == redeye_data_buffer_tail)
 		{
-			redeye_data_buffer[redeye_data_buffer_head++] = OVERFLOW_CHAR;
+			redeye_data_buffer[redeye_data_buffer_head++] = 0;
 			redeye_data_overflow_state = true;
 		}
 		else

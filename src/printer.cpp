@@ -125,8 +125,6 @@ void printer_self_test()
 	delay(500);
 }
 
-void printer_char(uint8_t c);
-
 void printer_init()
 {
 	printer.begin(255);
